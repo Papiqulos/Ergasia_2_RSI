@@ -1,6 +1,7 @@
 import numpy as np # Linear Algebra
 import pinocchio as pin # Pinocchio library
 import os
+import time
 
 from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.visualize import MeshcatVisualizer
@@ -34,64 +35,59 @@ def load_franka()->tuple[RobotWrapper, pin.Model, pin.Data, pin.GeometryModel, p
 
     return robot, model, data, geometry_model, geometry_data
 
-def step_world(current_state:np.ndarray, torques:np.ndarray, dt:float)->np.ndarray:
+def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_t:np.ndarray, control_t:np.ndarray, dt:float)->tuple[np.ndarray, np.ndarray]:
     """
     Step the world for a given time step dt
     
     Args:
-    - torques: torques to be applied at each joint
+    - model: pinocchio model
+    - data: pinocchio data
+    - current_q: current state of the robot
+    - current_t: torques to be applied at each joint
+    - control_t: torques to be applied at each joint
     - dt: time step
     
     Returns:
-    - states: list of states of the robot at each time step
+    - new_q: new state of the robot
+    - current_t: new torques to be applied at each joint
     """
-    robot, model, data, geometry_model, geometry_data = load_franka()
+    aq = pin.aba(model, data, current_q, current_t, control_t)
 
-    aq0 = np.zeros(model.nv)
+    current_t += aq * dt
+
+    new_q = pin.integrate(model, current_q, current_t * dt)
     
-    b = pin.rnea(model, data, current_state, torques, aq0)
+    return new_q, current_t
 
-    M = pin.crba(model, data, current_state)
-
-    aq = np.linalg.solve(M, torques - b)
-
-    torques = torques + aq * dt
-
-    new_state = pin.integrate(model, current_state, torques * dt)
-    
-    return new_state
-
-def simulate(new_state:np.ndarray, torques:np.ndarray, T:int, dt:float)->np.ndarray:
+def simulate(model:pin.Model, data:pin.Data, control_t:np.ndarray, T:int, dt:float)->tuple[np.ndarray, np.ndarray]:
     """
     Simulate the world for T seconds with a given time step dt
     
     Args:
     - model: pinocchio model
     - data: pinocchio data
-    - new_state: new state of the robot
+    - control_t: torques to be applied at each joint
     - T: time to simulate
     - dt: time step
     
     Returns:
     - states: list of states of the robot at each time step
     """
-    robot, model, data, geometry_model, geometry_data = load_franka()
 
-    K = int(T/dt) + 1
+    K = int(T/dt) 
+    print(f"Time steps: {K}")
 
-    states = np.zeros((K, new_state.shape[0]))
+    pin.seed(1083738)
+    q = pin.randomConfiguration(model)
+    u = np.zeros(model.nv)
 
-    states[0] = new_state
-    
-
-    for k in range(1, K):
-        states[k] = step_world(states[k-1], torques, dt)
-
-        # check if the robot is in collision
-        print(pin.computeCollisions(model, data, geometry_model, geometry_data, states[k], False))
+    # Simulate the world
+    for k in range(K):
+        q, u = step_world(model, data, q, u, control_t, dt)
+        time.sleep(dt)
             
 
-    return states
+    return q, u
 
 def visualize(robot, state):
 
@@ -102,21 +98,15 @@ def visualize(robot, state):
 
 def task1(): 
 
-    model = load_franka()[1]
-    T = 1
-    dt = 0.1
+    robot, model, data, geometry_model, geometry_data = load_franka()
 
-    q0 = pin.randomConfiguration(model)
-    torques = np.full_like(q0, 0.7)
+    T = 4
+    dt = 0.01
 
-    print(f"q0: {q0}")
-    print(f"torques: {torques}")
+    control_t = np.zeros(model.nv)
+    q, u = simulate(model, data, control_t, T, dt)
 
-    q = simulate(q0, torques, T, dt)
-
-    end_state = q[-1]
-
-    print(f"end_state : {end_state}")
+    print(f"end_q : {q}")
 
 if __name__ == "__main__":
 
