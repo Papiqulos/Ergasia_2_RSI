@@ -96,7 +96,8 @@ def visualize(robot:RobotWrapper, qs:list[np.ndarray]|np.ndarray):
     
     Args:
     - robot: robot wrapper
-    - qs: list of states of the robot at each time step"""
+    - qs: list of states of the robot at each time step or a single state
+    """
 
     # Visualize the robot
     robot.setVisualizer(VISUALIZER())
