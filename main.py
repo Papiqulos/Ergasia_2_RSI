@@ -59,7 +59,7 @@ def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_t:n
     
     return new_q, current_t
 
-def simulate(model:pin.Model, data:pin.Data, control_t:np.ndarray, T:int, dt:float)->tuple[np.ndarray, np.ndarray]:
+def simulate(robot, model:pin.Model, data:pin.Data, control_t:np.ndarray, T:int, dt:float)->tuple[np.ndarray, np.ndarray]:
     """
     Simulate the world for T seconds with a given time step dt
     
@@ -81,20 +81,34 @@ def simulate(model:pin.Model, data:pin.Data, control_t:np.ndarray, T:int, dt:flo
     q = pin.randomConfiguration(model)
     u = np.zeros(model.nv)
 
+    qs = []
     # Simulate the world
     for k in range(K):
         q, u = step_world(model, data, q, u, control_t, dt)
-        time.sleep(dt)
+        qs.append(q)
             
 
-    return q, u
+    return q, u, qs
 
-def visualize(robot, state):
+def visualize(robot:RobotWrapper, qs:list[np.ndarray]|np.ndarray):
+    """
+    Visualize the robot
+    
+    Args:
+    - robot: robot wrapper
+    - qs: list of states of the robot at each time step"""
 
     # Visualize the robot
     robot.setVisualizer(VISUALIZER())
     robot.initViewer()
     robot.loadViewerModel("pinocchio")
+    if isinstance(qs, list):
+        for q in qs:
+            robot.display(q)
+            time.sleep(0.01)
+    else:
+        robot.display(qs)
+    
 
 def task1(): 
 
@@ -102,11 +116,13 @@ def task1():
 
     T = 4
     dt = 0.01
-
-    control_t = np.zeros(model.nv)
-    q, u = simulate(model, data, control_t, T, dt)
+    
+    control_t = np.full(model.nv, 0.7)
+    q, u, qs = simulate(robot, model, data, control_t, T, dt)
 
     print(f"end_q : {q}")
+    visualize(robot, qs)
+    while True: continue
 
 if __name__ == "__main__":
 
