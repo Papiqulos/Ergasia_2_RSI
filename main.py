@@ -35,31 +35,51 @@ def load_franka()->tuple[RobotWrapper, pin.Model, pin.Data, pin.GeometryModel, p
 
     return robot, model, data, geometry_model, geometry_data
 
-def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_t:np.ndarray, control_t:np.ndarray, dt:float)->tuple[np.ndarray, np.ndarray]:
+def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_u:np.ndarray, control_t:np.ndarray, dt:float)->tuple[np.ndarray, np.ndarray]:
     """
     Step the world for a given time step dt
     
     Args:
     - model: pinocchio model
     - data: pinocchio data
-    - current_q: current state of the robot
-    - current_t: torques to be applied at each joint
-    - control_t: torques to be applied at each joint
+    - current_q: current position of each joint
+    - current_u: current velocity of each joint
+    - control_t: control torque to be applied at each joint
     - dt: time step
     
     Returns:
-    - new_q: new state of the robot
-    - current_t: new torques to be applied at each joint
+    - new_q: new position of each joint
+    - current_t: new velocity of each joint
     """
-    aq = pin.aba(model, data, current_q, current_t, control_t)
+    # Get joint limits
+    joint_limit_up = model.upperPositionLimit
+    joint_limit_low = model.lowerPositionLimit
+    velocity_limit = model.velocityLimit
 
-    current_t += aq * dt
+    # Integrate the dynamics and get the acceleration
+    aq = pin.aba(model, data, current_q, current_u, control_t)
 
-    new_q = pin.integrate(model, current_q, current_t * dt)
+    # Integrate the acceleration to get the new velocity
+    current_u += aq * dt
+
+    # Integrate the velocity to get the new position
+    new_q = pin.integrate(model, current_q, current_u * dt)
+
+    # Position limit check
+    if np.any(new_q > joint_limit_up) or np.any(new_q < joint_limit_low):
+        print("Joint limit reached")
+        new_q = current_q
+        current_u = np.zeros(model.nv)
+
+    # Velocity limit check
+    if np.any(current_u > velocity_limit) or np.any(current_u < -velocity_limit):
+        print("Velocity limit reached")
+        current_u = np.zeros(model.nv)
     
-    return new_q, current_t
+    
+    return new_q, current_u
 
-def simulate(robot, model:pin.Model, data:pin.Data, control_t:np.ndarray, T:int, dt:float)->tuple[np.ndarray, np.ndarray]:
+def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, control_t:np.ndarray, T:int, dt:float)->tuple[list, np.ndarray]:
     """
     Simulate the world for T seconds with a given time step dt
     
@@ -71,24 +91,25 @@ def simulate(robot, model:pin.Model, data:pin.Data, control_t:np.ndarray, T:int,
     - dt: time step
     
     Returns:
-    - states: list of states of the robot at each time step
+    - qs: list of joint params of the robot at each time step
+    - end_state: final state of the robot
     """
 
     K = int(T/dt) 
     print(f"Time steps: {K}")
 
-    pin.seed(1083738)
-    q = pin.randomConfiguration(model)
     u = np.zeros(model.nv)
+    
+    # start_state = np.array([q, u])
 
     qs = []
     # Simulate the world
-    for k in range(K):
+    for _ in range(K):
         q, u = step_world(model, data, q, u, control_t, dt)
         qs.append(q)
             
-
-    return q, u, qs
+    end_state = np.array([q, u])
+    return qs, end_state
 
 def visualize(robot:RobotWrapper, qs:list[np.ndarray]|np.ndarray):
     """
@@ -110,20 +131,23 @@ def visualize(robot:RobotWrapper, qs:list[np.ndarray]|np.ndarray):
     else:
         robot.display(qs)
     
-
 def task1(): 
 
     robot, model, data, geometry_model, geometry_data = load_franka()
 
-    T = 4
+    T = 5
     dt = 0.01
     
-    control_t = np.full(model.nv, 0.7)
-    q, u, qs = simulate(robot, model, data, control_t, T, dt)
-
-    print(f"end_q : {q}")
-    visualize(robot, qs)
+    pin.seed(1083738)
+    # q0 = pin.randomConfiguration(model)
+    q0 = np.array([0.0, 0.0, 0.0, -1.57, 0.0, 1.57, 0.0])
+    control_t = np.array([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    qs, end_state = simulate(model, data, q0, control_t, T, dt)
+    print(f"End state: {end_state}")
+    q, u = end_state
+    visualize(robot, q)
     while True: continue
+    
 
 if __name__ == "__main__":
 
