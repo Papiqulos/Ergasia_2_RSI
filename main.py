@@ -79,7 +79,7 @@ def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_u:n
     
     return new_q, current_u
 
-def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, control_t:np.ndarray, T:int, dt:float)->tuple[list, np.ndarray]:
+def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float)->tuple[list, np.ndarray]:
     """
     Simulate the world for T seconds with a given time step dt
     
@@ -98,17 +98,22 @@ def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, control_t:np.ndarray,
     K = int(T/dt) 
     print(f"Time steps: {K}")
 
-    u = np.zeros(model.nv)
-    
+    # Initial velocity
+    # u = np.zeros(model.nv)
+
+    # Initial state
     # start_state = np.array([q, u])
 
+    # Store the positions of the robot at each time step
     qs = []
     # Simulate the world
     for _ in range(K):
         q, u = step_world(model, data, q, u, control_t, dt)
         qs.append(q)
-            
+    
+    # End state
     end_state = np.array([q, u])
+
     return qs, end_state
 
 def visualize(robot:RobotWrapper, qs:list[np.ndarray]|np.ndarray):
@@ -135,17 +140,26 @@ def task1():
 
     robot, model, data, geometry_model, geometry_data = load_franka()
 
-    T = 5
+    T = 10
     dt = 0.01
     
     pin.seed(1083738)
-    # q0 = pin.randomConfiguration(model)
-    q0 = np.array([0.0, 0.0, 0.0, -1.57, 0.0, 1.57, 0.0])
+    ## Initial state
+    # Position
+    q0 = pin.randomConfiguration(model)
+    # q0 = np.array([0.0, 0.0, 0.0, -1.57, 0.0, 1.57, 0.0])
+
+    # Velocity
+    u = np.zeros(model.nv)
+
+    # Control torque
     control_t = np.array([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-    qs, end_state = simulate(model, data, q0, control_t, T, dt)
+
+    qs, end_state = simulate(model, data, q0, u , control_t, T, dt)
     print(f"End state: {end_state}")
+
     q, u = end_state
-    visualize(robot, q)
+    visualize(robot, qs)
     while True: continue
     
 
