@@ -4,8 +4,8 @@ def task1():
 
     robot, model, data, geometry_model, geometry_data = load_franka()
 
-    T = 10
-    dt = 0.01
+    T = 0.1
+    dt = 0.001
     
     
     ## Initial state
