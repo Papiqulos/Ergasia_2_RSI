@@ -2,6 +2,7 @@ import numpy as np # Linear Algebra
 import pinocchio as pin # Pinocchio library
 import os
 import time
+from control import pid_torque_control, fk_all
 
 from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio.visualize import MeshcatVisualizer
@@ -42,7 +43,7 @@ def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_u:n
     Args:
     - model: pinocchio model
     - data: pinocchio data
-    - current_q: current position of each joint
+    - current_q: current position of each joint (angles of each joint)
     - current_u: current velocity of each joint
     - control_t: control torque to be applied at each joint
     - dt: time step
@@ -65,21 +66,15 @@ def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_u:n
     # Integrate the velocity to get the new position
     new_q = pin.integrate(model, current_q, current_u * dt)
 
-    # Position limit check
-    if np.any(new_q > joint_limit_up) or np.any(new_q < joint_limit_low):
-        # print("Joint limit reached")
-        new_q = current_q
-        current_u = np.zeros(model.nv)
+    # Clip the position if it exceeds the joint limits
+    new_q = np.clip(new_q, joint_limit_low, joint_limit_up)
 
-    # Velocity limit check
-    elif np.any(current_u > velocity_limit) or np.any(current_u < -velocity_limit):
-        # print("Velocity limit reached")
-        current_u = np.zeros(model.nv)
-    
+    # Clip the velocity if it exceeds the velocity limits
+    current_u = np.clip(current_u, -velocity_limit, velocity_limit)
     
     return new_q, current_u
 
-def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float)->tuple[list, np.ndarray]:
+def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float, control:bool, target_q:np.ndarray|None=None)->tuple[list, np.ndarray]:
     """
     Simulate the world for T seconds with a given time step dt
     
@@ -91,34 +86,43 @@ def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control
     - control_t: torques to be applied at each joint
     - T: time to simulate
     - dt: time step
+    - control: whether to apply control or not
     
     Returns:
     - qs: list of joint params of the robot at each time step
     - end_state: final state of the robot (position and velocity)
     """
+    frame_id = model.getFrameId("panda_ee")
 
     K = int(T/dt) 
     print(f"Time steps: {K}")
-
-    # Initial velocity
-    # u = np.zeros(model.nv)
-
+    
     # Initial state
     # start_state = np.array([q, u])
 
+    # Target pose profile
+    fk_all(model, data, target_q)
+    target_T = data.oMf[frame_id].copy()
+
     # Store the positions of the robot at each time step
-    qs = []
+    qs = np.zeros((K, model.nq))
     # Simulate the world
-    for _ in range(K):
-        q, u = step_world(model, data, q, u, control_t, dt)
-        qs.append(q)
+    if control:
+        for i in range(K):
+            control_t = pid_torque_control(model, data, target_T, q, dt)
+            q, u = step_world(model, data, q, u, control_t, dt)
+            qs[i] = q
+    else:
+        for i in range(K):
+            q, u = step_world(model, data, q, u, control_t, dt)
+            qs[i] = q
     
     # End state
     end_state = np.array([q, u])
 
     return qs, end_state
 
-def visualize(robot:RobotWrapper, qs:list[np.ndarray]|np.ndarray):
+def visualize(robot:RobotWrapper, qs:np.ndarray):
     """
     Visualize the robot
     
@@ -131,10 +135,10 @@ def visualize(robot:RobotWrapper, qs:list[np.ndarray]|np.ndarray):
     robot.setVisualizer(VISUALIZER())
     robot.initViewer()
     robot.loadViewerModel("pinocchio")
-    if isinstance(qs, list):
+    if len(qs) == 7:
+        robot.display(qs)
+    else:
         for q in qs:
             robot.display(q)
             time.sleep(0.01)
-    else:
-        robot.display(qs)
  

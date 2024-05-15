@@ -13,7 +13,6 @@ def fk_all(model:pin.Model, data:pin.Data, q:np.ndarray):
     pin.forwardKinematics(model,data,q) # FK
     pin.updateFramePlacements(model, data) # Update frames
 
-
 def qp_control(model:pin.Model, data:pin.Data, qd:np.ndarray, q_k:np.ndarray, T_wd, frame_id, dt:float, Kp:float = 100., Kd:float = 1., Ki:float = 0.)->np.ndarray:
     """
     ProxSuite QP-based controller
@@ -85,3 +84,47 @@ def qp_control(model:pin.Model, data:pin.Data, qd:np.ndarray, q_k:np.ndarray, T_
     v = np.copy(qp.results.x)
     
     return v
+
+def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, current_q:np.ndarray, dt:float, Kp:float = 100., Kd:float = 1., Ki:float = 0.)->np.ndarray:
+    """
+    PID torque controller
+    
+    Args:
+    model : Pinocchio model
+    data : Pinocchio data
+    target_q : target joint configuration
+    current_q : current joint configuration
+    dt : time step
+    Kp : proportional gain
+    Kd : derivative gain
+    Ki : integral gain
+
+    Returns:
+    control_t : control torque
+    """
+    global prev_error
+    global sum_error
+
+    frame_id = model.getFrameId("panda_ee")
+
+    # Compute current transformation matrix
+    fk_all(model, data, current_q)
+    current_T = data.oMf[frame_id].copy()
+
+    # Compute error
+    error = pin.log(current_T.actInv(target_T)).vector
+
+    if prev_error is None:
+        prev_error = np.copy(error)
+    
+    sum_error += (error * dt)
+    error = Kp * error + Kd * (error - prev_error) / dt + Ki * sum_error
+    prev_error = np.copy(error)
+
+    # Compute Jacobian
+    J = pin.computeFrameJacobian(model, data, current_q, frame_id, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED) # Jacobian in local frame
+
+    # Compute control torque
+    control_t = J.T @ error
+
+    return control_t
