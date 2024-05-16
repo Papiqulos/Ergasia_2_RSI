@@ -1,11 +1,10 @@
-from modeling import *
 import numpy as np
 import FrankaRobot as fr
+import pinocchio as pin
   
-def task1(): 
+def task1(robot): 
 
-    robot, model, data, geometry_model, geometry_data = load_franka()
-
+    model = robot.model
     T = 10
     dt = 0.01
     
@@ -23,7 +22,7 @@ def task1():
     # Control torque
     control_t = np.array([0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-    qs, end_state = simulate(model, data, q0, u, control_t, T, dt)
+    qs, end_state = robot.simulate(q0, u, control_t, T, dt)
     q, u = end_state
     print(f"\t\t\tEnd state\nposistion: {end_state[0]}\nvelocity: {end_state[1]}")
     
@@ -31,9 +30,8 @@ def task1():
     # visualize(robot, qs)
     # while True: continue
 
-def task2():
+def task2(robot):
 
-    robot = fr.Franka()
     model = robot.model
 
     T = 10
@@ -71,10 +69,16 @@ def task2():
     robot.visualize(qs)
     while True: continue
 
-def task3():    
+def task3(robot):    
     pass
 
 
 if __name__ == "__main__":
 
-    task2()
+    robot = fr.Franka()
+
+    task1(robot)
+
+    # task2(robot)
+
+    # task3(robot)
