@@ -1,5 +1,6 @@
 from modeling import *
 import numpy as np
+import FrankaRobot as fr
   
 def task1(): 
 
@@ -32,10 +33,11 @@ def task1():
 
 def task2():
 
-    robot, model, data, geometry_model, geometry_data = load_franka()
+    robot = fr.Franka()
+    model = robot.model
 
     T = 10
-    dt = 0.1
+    dt = 0.01
     
     ## Initial state
     # Position
@@ -57,12 +59,18 @@ def task2():
     Ki = 1.
     Kd = 0.
 
-    qs, end_state = simulate(model, data, q0, u , control_t, T, dt, target_q, Kp, Ki, Kd)
+    qs, end_state = robot.simulate(q0, u , control_t, T, dt, target_q, Kp, Ki, Kd)
+    # qs, end_state = simulate(model, data, q0, u , control_t, T, dt, target_q, Kp, Ki, Kd)
     q, u = end_state
+
 
     print(f"\nEnd posistion:\t\tTarget position:")
     for i in range(len(q)):
         print(f"{q[i]:.3f}\t\t\t{target_q[i]:.3f}")
+    
+    # Visualize the robot
+    robot.visualize(qs)
+    while True: continue
 
 def task3():    
     pass

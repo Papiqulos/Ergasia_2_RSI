@@ -74,7 +74,7 @@ def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_u:n
     
     return new_q, current_u
 
-def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float, target_q:np.ndarray|None=None, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[list, np.ndarray]:
+def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float, target_q:np.ndarray|None=None, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[np.ndarray, np.ndarray]:
     """
     Simulate the world for T seconds with a given time step dt
     
