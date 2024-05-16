@@ -13,24 +13,24 @@ def fk_all(model:pin.Model, data:pin.Data, q:np.ndarray):
     pin.forwardKinematics(model, data, q) # FK
     pin.updateFramePlacements(model, data) # Update frames
 
-def qp_control(model:pin.Model, data:pin.Data, qd:np.ndarray, q_k:np.ndarray, T_wd, frame_id, dt:float, Kp:float = 100., Kd:float = 1., Ki:float = 0.)->np.ndarray:
+def qp_velocity_control(model:pin.Model, data:pin.Data, qd:np.ndarray, q_k:np.ndarray, T_wd, frame_id, dt:float, Kp:float = 100., Kd:float = 1., Ki:float = 0.)->np.ndarray:
     """
-    ProxSuite QP-based controller
+    ProxSuite QP-based velocity controller (servo based)
     
     Args:
-    model : Pinocchio model
-    data : Pinocchio data
-    qd : target joint configuration
-    q_k : current joint configuration
-    T_wd : desired transformation matrix
-    frame_id : frame id
-    dt : time step
-    Kp : proportional gain
-    Kd : derivative gain
-    Ki : integral gain
+    - model : Pinocchio model
+    - data : Pinocchio data
+    - qd : target joint configuration
+    - q_k : current joint configuration
+    - T_wd : desired transformation matrix
+    - frame_id : frame id
+    - dt : time step
+    - Kp : proportional gain
+    - Kd : derivative gain
+    - Ki : integral gain
 
     Returns:
-    v : joint velocity
+    - v : joint velocity
     """
     global qp
     global qp_init
