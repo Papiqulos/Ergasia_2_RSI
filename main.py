@@ -1,6 +1,7 @@
 import numpy as np
-import FrankaRobot as fr
+import Franka as fr
 import pinocchio as pin
+import time
   
 def task1(robot:fr.Franka, T:int, dt:float, q0:np.ndarray, u:np.ndarray, control_t:np.ndarray, visuals:bool=False): 
     """
@@ -23,7 +24,7 @@ def task1(robot:fr.Franka, T:int, dt:float, q0:np.ndarray, u:np.ndarray, control
     
     # Visualize the robot
     if visuals:
-        robot.visualize(robot, qs)
+        robot.visualize(qs)
         while True: continue
 
 def task2(robot:fr.Franka, T:int, dt:float, q0:np.ndarray, u:np.ndarray, control_t:np.ndarray, target_q:np.ndarray, Kp:float=100., Ki:float=1., Kd:float=0., visuals:bool=False):
@@ -48,14 +49,15 @@ def task2(robot:fr.Franka, T:int, dt:float, q0:np.ndarray, u:np.ndarray, control
     qs, end_state = robot.simulate(q0, u, control_t, T, dt, target_q, Kp, Ki, Kd)
     q, u = end_state
 
-    print(f"\nEnd posistion:\t\tTarget position:")
-    for i in range(len(q)):
-        print(f"{q[i]:.3f}\t\t\t{target_q[i]:.3f}")
+    # print(f"\nEnd config:\t\tTarget config:")
+    # for i in range(len(q)):
+    #     print(f"{q[i]:.3f}\t\t\t{target_q[i]:.3f}")
     
     # Visualize the robot
     if visuals:
-        robot.visualize(robot, qs)
+        robot.visualize(qs)
         while True: continue
+        
 
 def task3(robot, T, dt, q0, u, control_t):    
     pass
@@ -66,28 +68,30 @@ if __name__ == "__main__":
     robot = fr.Franka()
     model = robot.model
 
+    ## Simulation parameters
     # Time period
-    T = 10
+    T = 100
     # Time step
-    dt = 0.1
+    dt = 0.001
     
     ## Initial state
     # Joints configuration
-    q0 = pin.randomConfiguration(model)
+    q0 = np.array([2, -0.665, -2.65, -2.15, -2.21,  1.18, 0.3])
+    
     # Velocity
     u = np.zeros(model.nv)
 
     ## Control torque
-    control_t = np.array([0., 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    control_t = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-    # task1(robot, T, dt, q0, u, control_t)
+    # task1(robot, T, dt, q0, u, control_t, visuals=True)
 
     Kp = 100.
-    Ki = 1.
-    Kd = 0.
+    Ki = 0.
+    Kd = 0.1
 
-    target_q = np.array([1.133, -0.565, -2.65, -2.05, -2.81,  0.18, 0.2])
+    target_q = np.array([10, -0.665, -2.65, -2.15, -2.21,  1.18, 0.3])
 
-    task2(robot, T, dt, q0, u, control_t, target_q, Kp, Ki, Kd)
+    # task2(robot, T, dt, q0, u, control_t, target_q, Kp, Ki, Kd, visuals=True)
 
     # task3(robot, T, dt, q0, u, control_t)

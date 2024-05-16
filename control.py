@@ -1,8 +1,9 @@
 import numpy as np
 import pinocchio as pin
 import proxsuite
+from modules import log_rotation
 
-qp_init = False
+init = False
 prev_error = None
 sum_error = 0.
 
@@ -103,6 +104,7 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     - control_t : control torque
     - error : error
     """
+    global init
     global prev_error
     global sum_error
 
@@ -111,17 +113,29 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     # Compute current transformation matrix
     fk_all(model, data, current_q)
     current_T = data.oMf[frame_id].copy()
+
+    rotation_matrix_current = current_T.rotation
+    rotation_matrix_target = target_T.rotation
+
+    position_current = current_T.translation
+    position_target = target_T.translation
     
     # print(f"Current T: {current_T}"
     #       f"Target T: {target_T}")
 
     # Compute error
-    error = pin.log(current_T.actInv(target_T)).vector
+    error_orientation = pin.log(rotation_matrix_target @ rotation_matrix_current.T)
+    error_orientation = error_orientation.reshape((3, 1))
+    
+    error_position = position_target - position_current
+    error_position = error_position.reshape((3, 1))
+
+    error = np.concatenate([error_position, error_orientation])
     # print(f"Error: {error}")
 
     if prev_error is None:
         prev_error = np.copy(error)
-    
+
     sum_error += (error * dt)
     diff_error = (error - prev_error) / dt
 
@@ -129,6 +143,13 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
 
     prev_error = np.copy(error)
 
+    if init:
+        sum_error = 0.
+        prev_error = None
+        init = False
+    else:
+        init = True
+    
     # Compute Jacobian
     J = pin.computeFrameJacobian(model, data, current_q, frame_id, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED) # Jacobian in world frame
 

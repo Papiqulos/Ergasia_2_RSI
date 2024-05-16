@@ -13,7 +13,12 @@ class Franka:
     """Franka Panda robot class"""
     
     def __init__(self):
-        self.robot, self.model, self.data, self.geometry_model, self.geometry_data = self.load_franka()
+        self.robot, self.model, self.data = self.load_franka()
+
+        # Initialize the visualizer
+        self.robot.setVisualizer(VISUALIZER())
+        self.robot.initViewer()
+        self.robot.loadViewerModel("pinocchio")
 
     def step_world(self, current_q:np.ndarray, current_u:np.ndarray, control_t:np.ndarray, dt:float)->tuple[np.ndarray, np.ndarray]:
         """
@@ -61,8 +66,6 @@ class Franka:
         - robot: robot wrapper
         - model: pinocchio model
         - data: pinocchio data
-        - geometry_model: pinocchio geometry model
-        - geometry_data: pinocchio geometry data
         """
         # Load the URDF model
         current_path = os.path.abspath('') # where the folder `robot` is located at
@@ -75,10 +78,7 @@ class Franka:
         model = robot.model
         data = robot.data
 
-        geometry_model = pin.GeometryModel()
-        geometry_data = pin.GeometryData(geometry_model)
-
-        return robot, model, data, geometry_model, geometry_data
+        return robot, model, data
 
     def simulate(self, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float, target_q:np.ndarray|None=None, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[np.ndarray, np.ndarray]:
         """
@@ -92,7 +92,10 @@ class Franka:
         - control_t: torques to be applied at each joint
         - T: time to simulate
         - dt: time step
-        - control: whether to apply control or not
+        - target_q: target position of each joint
+        - Kp: proportional gain
+        - Ki: integral gain
+        - Kd: derivative gain
         
         Returns:
         - qs: list of joint params of the robot at each time step
@@ -143,6 +146,29 @@ class Franka:
             print(f"Final error:\n{error.reshape(-1, 1)}")
 
         return qs, end_state
+    
+    def get_pose_profile(self, target_q:np.ndarray)->pin.SE3:
+        """
+        Get the pose profile of the robot 
+        
+        Args:
+        - model: pinocchio model
+        - data: pinocchio data
+        - target_q: target position of each joint
+        
+        Returns:
+        - target_T: target pose profile
+        """
+        # End effector frame id
+        frame_id = self.model.getFrameId("panda_ee")
+
+        # Forward kinematics
+        fk_all(self.model, self.data, target_q)
+
+        # Get the transformation matrix
+        target_T = self.data.oMf[frame_id].copy()
+        
+        return target_T
 
     def visualize(self, qs:np.ndarray):
         """
@@ -154,9 +180,6 @@ class Franka:
         """
 
         # Visualize the robot
-        self.robot.setVisualizer(VISUALIZER())
-        self.robot.initViewer()
-        self.robot.loadViewerModel("pinocchio")
         if len(qs) == self.model.nq:
             self.robot.display(qs)
         else:
