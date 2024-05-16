@@ -74,7 +74,7 @@ def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_u:n
     
     return new_q, current_u
 
-def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float, control:bool, target_q:np.ndarray|None=None)->tuple[list, np.ndarray]:
+def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float, target_q:np.ndarray|None=None, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[list, np.ndarray]:
     """
     Simulate the world for T seconds with a given time step dt
     
@@ -100,16 +100,18 @@ def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control
     # Initial state
     # start_state = np.array([q, u])
 
-    # Target pose profile
-    fk_all(model, data, target_q)
-    target_T = data.oMf[frame_id].copy()
-
     # Store the positions of the robot at each time step
     qs = np.zeros((K, model.nq))
+
+    error = None
     # Simulate the world
-    if control:
+    if target_q is not None:
+         # Target pose profile
+        fk_all(model, data, target_q)
+        target_T = data.oMf[frame_id].copy()
         for i in range(K):
-            control_t = pid_torque_control(model, data, target_T, q, dt)
+            # PID torque control
+            control_t, error = pid_torque_control(model, data, target_T, q, dt, Kp, Ki, Kd)
             q, u = step_world(model, data, q, u, control_t, dt)
             qs[i] = q
     else:
@@ -119,6 +121,10 @@ def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control
     
     # End state
     end_state = np.array([q, u])
+
+    # Print the final error
+    if error is not None:
+        print(f"Final error:\n{error.reshape(-1, 1)}")
 
     return qs, end_state
 

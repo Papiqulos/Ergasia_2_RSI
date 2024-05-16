@@ -85,22 +85,23 @@ def qp_control(model:pin.Model, data:pin.Data, qd:np.ndarray, q_k:np.ndarray, T_
     
     return v
 
-def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, current_q:np.ndarray, dt:float, Kp:float = 100., Kd:float = 1., Ki:float = 0.)->np.ndarray:
+def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, current_q:np.ndarray, dt:float, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[np.ndarray, np.ndarray]:
     """
     PID torque controller
     
     Args:
     model : Pinocchio model
     data : Pinocchio data
-    target_q : target joint configuration
+    target_T : target pose profile
     current_q : current joint configuration
     dt : time step
     Kp : proportional gain
-    Kd : derivative gain
     Ki : integral gain
-
+    Kd : derivative gain
+    
     Returns:
     control_t : control torque
+    error : error
     """
     global prev_error
     global sum_error
@@ -110,21 +111,28 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     # Compute current transformation matrix
     fk_all(model, data, current_q)
     current_T = data.oMf[frame_id].copy()
+    
+    # print(f"Current T: {current_T}"
+    #       f"Target T: {target_T}")
 
     # Compute error
     error = pin.log(current_T.actInv(target_T)).vector
+    # print(f"Error: {error}")
 
     if prev_error is None:
         prev_error = np.copy(error)
     
     sum_error += (error * dt)
-    error = Kp * error + Kd * (error - prev_error) / dt + Ki * sum_error
+    diff_error = (error - prev_error) / dt
+
+    error = Kp * error + Kd * diff_error + Ki * sum_error
+
     prev_error = np.copy(error)
 
     # Compute Jacobian
-    J = pin.computeFrameJacobian(model, data, current_q, frame_id, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED) # Jacobian in local frame
+    J = pin.computeFrameJacobian(model, data, current_q, frame_id, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED) # Jacobian in world frame
 
     # Compute control torque
     control_t = J.T @ error
 
-    return control_t
+    return control_t, error
