@@ -92,8 +92,11 @@ def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control
     - qs: list of joint params of the robot at each time step
     - end_state: final state of the robot (position and velocity)
     """
+
+    # End effector frame id
     frame_id = model.getFrameId("panda_ee")
 
+    # Number of time steps
     K = int(T/dt) 
     print(f"Time steps: {K}")
     
@@ -103,19 +106,26 @@ def simulate(model:pin.Model, data:pin.Data, q:np.ndarray, u:np.ndarray, control
     # Store the positions of the robot at each time step
     qs = np.zeros((K, model.nq))
 
+    # Initialize the error
     error = None
+
     # Simulate the world
     if target_q is not None:
+
          # Target pose profile
         fk_all(model, data, target_q)
         target_T = data.oMf[frame_id].copy()
+
         for i in range(K):
+
             # PID torque control
             control_t, error = pid_torque_control(model, data, target_T, q, dt, Kp, Ki, Kd)
             q, u = step_world(model, data, q, u, control_t, dt)
             qs[i] = q
     else:
         for i in range(K):
+
+            # No control
             q, u = step_world(model, data, q, u, control_t, dt)
             qs[i] = q
     
