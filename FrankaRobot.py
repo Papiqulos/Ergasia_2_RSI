@@ -9,11 +9,10 @@ from pinocchio.visualize import MeshcatVisualizer
 
 VISUALIZER = MeshcatVisualizer
 
-
 class Franka:
     """Franka Panda robot class"""
     
-    def __init__(self) -> None:
+    def __init__(self):
         self.robot, self.model, self.data, self.geometry_model, self.geometry_data = self.load_franka()
 
     def step_world(self, current_q:np.ndarray, current_u:np.ndarray, control_t:np.ndarray, dt:float)->tuple[np.ndarray, np.ndarray]:

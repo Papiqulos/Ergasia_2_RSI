@@ -68,19 +68,17 @@ if __name__ == "__main__":
 
     # Time period
     T = 10
-
     # Time step
     dt = 0.1
     
     ## Initial state
     # Joints configuration
     q0 = pin.randomConfiguration(model)
-
     # Velocity
     u = np.zeros(model.nv)
 
     ## Control torque
-    control_t = np.array([0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    control_t = np.array([0., 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     # task1(robot, T, dt, q0, u, control_t)
 
@@ -88,7 +86,7 @@ if __name__ == "__main__":
     Ki = 1.
     Kd = 0.
 
-    target_q = np.array([1.13380891, -0.56585662, -2.65877219, -2.05434817, -2.81552492,  0.18592432, 0.28310915])
+    target_q = np.array([1.133, -0.565, -2.65, -2.05, -2.81,  0.18, 0.2])
 
     task2(robot, T, dt, q0, u, control_t, target_q, Kp, Ki, Kd)
 
