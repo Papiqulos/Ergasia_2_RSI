@@ -57,7 +57,7 @@ class Franka:
 
     def load_franka(self)->tuple[RobotWrapper, pin.Model, pin.Data, pin.GeometryModel, pin.GeometryData]:
         """
-        Load the Franka Emika Panda robot model
+        Load the Franka Panda Panda robot model
         
         Returns:
         - robot: robot wrapper
@@ -159,7 +159,7 @@ class Franka:
         self.robot.setVisualizer(VISUALIZER())
         self.robot.initViewer()
         self.robot.loadViewerModel("pinocchio")
-        if len(qs) == 7:
+        if len(qs) == self.model.nq:
             self.robot.display(qs)
         else:
             for q in qs:

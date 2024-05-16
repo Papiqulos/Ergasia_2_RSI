@@ -88,20 +88,20 @@ def qp_control(model:pin.Model, data:pin.Data, qd:np.ndarray, q_k:np.ndarray, T_
 def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, current_q:np.ndarray, dt:float, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[np.ndarray, np.ndarray]:
     """
     PID torque controller
-    
+
     Args:
-    model : Pinocchio model
-    data : Pinocchio data
-    target_T : target pose profile
-    current_q : current joint configuration
-    dt : time step
-    Kp : proportional gain
-    Ki : integral gain
-    Kd : derivative gain
+    - model : Pinocchio model
+    - data : Pinocchio data
+    - target_T : target pose profile
+    - current_q : current joint configuration
+    - dt : time step
+    - Kp : proportional gain
+    - Ki : integral gain
+    - Kd : derivative gain
     
     Returns:
-    control_t : control torque
-    error : error
+    - control_t : control torque
+    - error : error
     """
     global prev_error
     global sum_error

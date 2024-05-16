@@ -63,7 +63,6 @@ def task2():
     # qs, end_state = simulate(model, data, q0, u , control_t, T, dt, target_q, Kp, Ki, Kd)
     q, u = end_state
 
-
     print(f"\nEnd posistion:\t\tTarget position:")
     for i in range(len(q)):
         print(f"{q[i]:.3f}\t\t\t{target_q[i]:.3f}")

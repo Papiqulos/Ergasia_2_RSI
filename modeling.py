@@ -36,6 +36,7 @@ def load_franka()->tuple[RobotWrapper, pin.Model, pin.Data, pin.GeometryModel, p
 
     return robot, model, data, geometry_model, geometry_data
 
+
 def step_world(model:pin.Model, data:pin.Data, current_q:np.ndarray, current_u:np.ndarray, control_t:np.ndarray, dt:float)->tuple[np.ndarray, np.ndarray]:
     """
     Step the world for a given time step dt
