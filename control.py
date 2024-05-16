@@ -10,7 +10,7 @@ def fk_all(model:pin.Model, data:pin.Data, q:np.ndarray):
     """
     Compute forward kinematics for all frames
     """
-    pin.forwardKinematics(model,data,q) # FK
+    pin.forwardKinematics(model, data, q) # FK
     pin.updateFramePlacements(model, data) # Update frames
 
 def qp_control(model:pin.Model, data:pin.Data, qd:np.ndarray, q_k:np.ndarray, T_wd, frame_id, dt:float, Kp:float = 100., Kd:float = 1., Ki:float = 0.)->np.ndarray:

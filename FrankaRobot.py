@@ -11,9 +11,8 @@ VISUALIZER = MeshcatVisualizer
 
 
 class Franka:
-
     """Franka Panda robot class"""
-
+    
     def __init__(self) -> None:
         self.robot, self.model, self.data, self.geometry_model, self.geometry_data = self.load_franka()
 
