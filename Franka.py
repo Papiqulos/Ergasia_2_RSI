@@ -82,7 +82,7 @@ class Franka:
 
     def simulate(self, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float, target_q:np.ndarray|None=None, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[np.ndarray, np.ndarray]:
         """
-        Simulate the world for T seconds with a given time step dt
+        Simulate the world for T seconds with a given time step dt with or without a PID torque controller
         
         Args:
         - model: pinocchio model
@@ -100,35 +100,31 @@ class Franka:
         Returns:
         - qs: list of joint params of the robot at each time step
         - end_state: final state of the robot (position and velocity)
+        - errors: list of the norm of the error at each time step
         """
-
-        # End effector frame id
-        frame_id = self.model.getFrameId("panda_ee")
 
         # Number of time steps
         K = int(T/dt) 
         print(f"Time steps: {K}")
-        
-        # Initial state
-        # start_state = np.array([q, u])
 
         # Store the positions of the robot at each time step
         qs = np.zeros((K, self.model.nq))
 
         # Initialize the error
         error = None
+        errors = np.zeros(K)
 
         # Simulate the world
         if target_q is not None:
 
             # Target pose profile
-            fk_all(self.model, self.data, target_q)
-            target_T = self.data.oMf[frame_id].copy()
+            target_T = self.get_pose_profile(target_q)
 
             for i in range(K):
 
                 # PID torque control
-                control_t, error = pid_torque_control(self.model, self.data, target_T, q, dt, Kp, Ki, Kd)
+                control_t, error= pid_torque_control(self.model, self.data, target_T, q, dt, Kp, Ki, Kd)
+                errors[i] = np.linalg.norm(error)
                 q, u = self.step_world(q, u, control_t, dt)
                 qs[i] = q
         else:
@@ -141,11 +137,7 @@ class Franka:
         # End state
         end_state = np.array([q, u])
 
-        # Print the final error
-        if error is not None:
-            print(f"Final error:\n{error.reshape(-1, 1)}")
-
-        return qs, end_state
+        return qs, end_state, errors
     
     def get_pose_profile(self, target_q:np.ndarray)->pin.SE3:
         """

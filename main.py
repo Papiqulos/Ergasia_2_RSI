@@ -1,7 +1,7 @@
 import numpy as np
 import Franka as fr
+import matplotlib.pyplot as plt
 import pinocchio as pin
-import time
   
 def task1(robot:fr.Franka, T:int, dt:float, q0:np.ndarray, u:np.ndarray, control_t:np.ndarray, visuals:bool=False): 
     """
@@ -46,19 +46,25 @@ def task2(robot:fr.Franka, T:int, dt:float, q0:np.ndarray, u:np.ndarray, control
     - Kd: derivative gain
     - visuals: whether to visualize the robot or not"""
 
-    qs, end_state = robot.simulate(q0, u, control_t, T, dt, target_q, Kp, Ki, Kd)
+    qs, end_state, errors = robot.simulate(q0, u, control_t, T, dt, target_q, Kp, Ki, Kd)
     q, u = end_state
 
-    # print(f"\nEnd config:\t\tTarget config:")
-    # for i in range(len(q)):
-    #     print(f"{q[i]:.3f}\t\t\t{target_q[i]:.3f}")
+    K = int(T/dt)
+
+    plt.plot(np.arange(K), errors)
+    plt.xlabel("Time steps")
+    plt.ylabel("Error")
+    plt.title("Error vs Time steps")
+    plt.grid()
+    plt.show()
+
+
     
     # Visualize the robot
     if visuals:
         robot.visualize(qs)
         while True: continue
         
-
 def task3(robot, T, dt, q0, u, control_t):    
     pass
 
@@ -70,28 +76,32 @@ if __name__ == "__main__":
 
     ## Simulation parameters
     # Time period
-    T = 100
+    T = 10
     # Time step
-    dt = 0.1
+    dt = 0.01
     
     ## Initial state
     # Joints configuration
-    q0 = np.array([2, -0.665, -2.65, -2.15, -2.21,  1.18, 0.3])
+    pin.seed(10837383)
+    q0 = pin.randomConfiguration(model)
+    print(f"Initial configuration: {q0}")
     
     # Velocity
     u = np.zeros(model.nv)
 
-    ## Control torque
+    ## Initial Control torque
     control_t = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     # task1(robot, T, dt, q0, u, control_t, visuals=True)
 
     Kp = 100.
     Ki = 50.
-    Kd = 23
+    Kd = 23.
 
-    target_q = np.array([10, -0.665, -2.65, -2.15, -2.21,  1.18, 0.3])
-
-    task2(robot, T, dt, q0, u, control_t, target_q, Kp, Ki, Kd)
+    target_q = np.array([1.0, -0.645, -1.65, -2.15, -2.31,  2.18, 0.3])
+    try:
+        task2(robot, T, dt, q0, u, control_t, target_q, Kp, Ki, Kd)
+    except KeyboardInterrupt:
+        exit()
 
     # task3(robot, T, dt, q0, u, control_t)

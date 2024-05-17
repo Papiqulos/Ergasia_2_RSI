@@ -1,7 +1,7 @@
 import numpy as np
 import pinocchio as pin
 import proxsuite
-
+from modules import damped_pseudoinverse
 
 init = False
 qp_init = False
@@ -89,7 +89,7 @@ def qp_velocity_control(model:pin.Model, data:pin.Data, qd:np.ndarray, q_k:np.nd
 
 def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, current_q:np.ndarray, dt:float, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[np.ndarray, np.ndarray]:
     """
-    PID torque controller
+    PID torque controller with null space controller
 
     Args:
     - model : Pinocchio model
@@ -105,6 +105,7 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     - control_t : control torque
     - error : error
     """
+    global init
     global prev_error
     global sum_error
 
@@ -124,10 +125,10 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     error_rotation = pin.log(target_rotation @ current_rotation.T)
     error_translation = target_translation - current_translation
 
-    error = np.concatenate((error_translation, error_rotation))
-    print(f"Error: {error}")
+    error = np.concatenate((error_rotation, error_translation))
+    # print(f"Error: {error}")
 
-    if prev_error is None:
+    if not init:
         prev_error = np.copy(error)
     
     sum_error += (error * dt)
@@ -137,7 +138,7 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
 
     prev_error = np.copy(error)
 
-    if init:
+    if not init:
         sum_error = 0.
         prev_error = None
         init = False
@@ -148,6 +149,13 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     J = pin.computeFrameJacobian(model, data, current_q, frame_id, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED) # Jacobian in world frame
 
     # Compute control torque
+
+    # Without null space controller
     control_t = J.T @ error
+
+    # With null space controller
+    q_target = (model.upperPositionLimit - model.lowerPositionLimit) / 2. + model.lowerPositionLimit
+    t_reg = 10. * (q_target - current_q)
+    control_t += J.T @ t_reg
 
     return control_t, error
