@@ -1,9 +1,10 @@
 import numpy as np
 import pinocchio as pin
 import proxsuite
-from modules import log_rotation
+
 
 init = False
+qp_init = False
 prev_error = None
 sum_error = 0.
 
@@ -104,7 +105,6 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     - control_t : control torque
     - error : error
     """
-    global init
     global prev_error
     global sum_error
 
@@ -114,28 +114,22 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     fk_all(model, data, current_q)
     current_T = data.oMf[frame_id].copy()
 
-    rotation_matrix_current = current_T.rotation
-    rotation_matrix_target = target_T.rotation
+    current_rotation = current_T.rotation
+    current_translation = current_T.translation
 
-    position_current = current_T.translation
-    position_target = target_T.translation
-    
-    # print(f"Current T: {current_T}"
-    #       f"Target T: {target_T}")
+    target_rotation = target_T.rotation
+    target_translation = target_T.translation   
 
     # Compute error
-    error_orientation = pin.log(rotation_matrix_target @ rotation_matrix_current.T)
-    error_orientation = error_orientation.reshape((3, 1))
-    
-    error_position = position_target - position_current
-    error_position = error_position.reshape((3, 1))
+    error_rotation = pin.log(target_rotation @ current_rotation.T)
+    error_translation = target_translation - current_translation
 
-    error = np.concatenate([error_position, error_orientation])
-    # print(f"Error: {error}")
+    error = np.concatenate((error_translation, error_rotation))
+    print(f"Error: {error}")
 
     if prev_error is None:
         prev_error = np.copy(error)
-
+    
     sum_error += (error * dt)
     diff_error = (error - prev_error) / dt
 
@@ -149,7 +143,7 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
         init = False
     else:
         init = True
-    
+
     # Compute Jacobian
     J = pin.computeFrameJacobian(model, data, current_q, frame_id, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED) # Jacobian in world frame
 

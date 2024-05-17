@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # Time period
     T = 100
     # Time step
-    dt = 0.001
+    dt = 0.1
     
     ## Initial state
     # Joints configuration
@@ -87,11 +87,11 @@ if __name__ == "__main__":
     # task1(robot, T, dt, q0, u, control_t, visuals=True)
 
     Kp = 100.
-    Ki = 0.
-    Kd = 0.1
+    Ki = 50.
+    Kd = 23
 
     target_q = np.array([10, -0.665, -2.65, -2.15, -2.21,  1.18, 0.3])
 
-    # task2(robot, T, dt, q0, u, control_t, target_q, Kp, Ki, Kd, visuals=True)
+    task2(robot, T, dt, q0, u, control_t, target_q, Kp, Ki, Kd)
 
     # task3(robot, T, dt, q0, u, control_t)
