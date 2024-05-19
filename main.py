@@ -50,6 +50,8 @@ def task2(robot:fr.Franka, T:int, dt:float, q0:np.ndarray, u:np.ndarray, control
     q, u = end_state
 
     K = int(T/dt)
+    print(f"Final error: {errors[-1]}")
+    print(f"Final configuration: {q}")
 
     plt.plot(np.arange(K), errors)
     plt.xlabel("Time steps")
@@ -95,8 +97,8 @@ if __name__ == "__main__":
     # task1(robot, T, dt, q0, u, control_t, visuals=True)
 
     Kp = 100.
-    Ki = 50.
-    Kd = 23.
+    Ki = 0.
+    Kd = 2.
 
     target_q = np.array([1.0, -0.645, -1.65, -2.15, -2.31,  2.18, 0.3])
     try:

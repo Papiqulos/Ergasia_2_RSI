@@ -125,7 +125,7 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     error_rotation = pin.log(target_rotation @ current_rotation.T)
     error_translation = target_translation - current_translation
 
-    error = np.concatenate((error_rotation, error_translation))
+    error = np.concatenate((error_translation, error_rotation))
     # print(f"Error: {error}")
 
     if not init:
@@ -149,13 +149,23 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     J = pin.computeFrameJacobian(model, data, current_q, frame_id, pin.ReferenceFrame.LOCAL_WORLD_ALIGNED) # Jacobian in world frame
 
     # Compute control torque
-
     # Without null space controller
     control_t = J.T @ error
 
     # With null space controller
     q_target = (model.upperPositionLimit - model.lowerPositionLimit) / 2. + model.lowerPositionLimit
-    t_reg = 10. * (q_target - current_q)
-    control_t += J.T @ t_reg
+    fk_all(model, data, q_target)
+    target_T_null = data.oMf[frame_id].copy()
+
+    target_rotation_null = target_T_null.rotation
+    target_translation_null = target_T_null.translation
+
+    error_rotation_null = pin.log(target_rotation_null @ current_rotation.T)
+    error_translation_null = target_translation_null - current_translation
+
+    error_null = np.concatenate((error_translation_null, error_rotation_null))
+    t_reg = J.T @ error_null
+
+    control_t += (np.eye(model.nv) - J.T @ np.linalg.pinv(J.T)) @ t_reg
 
     return control_t, error
