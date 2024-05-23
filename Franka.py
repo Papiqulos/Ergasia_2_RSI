@@ -80,14 +80,14 @@ class Franka:
 
         return robot, model, data
 
-    def simulate(self, q:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float, target_q:np.ndarray|None=None, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[np.ndarray, np.ndarray]:
+    def simulate(self, q0:np.ndarray, u:np.ndarray, control_t:np.ndarray, T:int, dt:float, target_q:np.ndarray|None=None, Kp:float = 120., Ki:float = 0., Kd:float = 0.1, Kp_theta:float = 10., Ki_theta:float = 0., Kd_theta:float = 0.)->tuple[np.ndarray, np.ndarray]:
         """
         Simulate the world for T seconds with a given time step dt with or without a PID torque controller
         
         Args:
         - model: pinocchio model
         - data: pinocchio data
-        - q: initial position of each joint
+        - q0: initial position of each joint
         - u: initial velocity of each joint
         - control_t: torques to be applied at each joint
         - T: time to simulate
@@ -96,6 +96,9 @@ class Franka:
         - Kp: proportional gain
         - Ki: integral gain
         - Kd: derivative gain
+        - Kp_theta: proportional gain for null space controller
+        - Ki_theta: integral gain for null space controller
+        - Kd_theta: derivative gain for null space controller
         
         Returns:
         - qs: list of joint params of the robot at each time step
@@ -105,7 +108,7 @@ class Franka:
 
         # Number of time steps
         K = int(T/dt) 
-        print(f"Time steps: {K}")
+        # print(f"Time steps: {K}")
 
         # Store the positions of the robot at each time step
         qs = np.zeros((K, self.model.nq))
@@ -123,19 +126,20 @@ class Franka:
             for i in range(K):
 
                 # PID torque control
-                control_t, error= pid_torque_control(self.model, self.data, target_T, q, dt, Kp, Ki, Kd)
+                control_t, error= pid_torque_control(self.model, self.data, target_T, q0, dt, Kp, Ki, Kd, Kp_theta, Ki_theta, Kd_theta)
                 errors[i] = np.linalg.norm(error)
-                q, u = self.step_world(q, u, control_t, dt)
-                qs[i] = q
+                q0, u = self.step_world(q0, u, control_t, dt)
+                qs[i] = q0
         else:
             for i in range(K):
 
                 # No control
-                q, u = self.step_world(q, u, control_t, dt)
-                qs[i] = q
+                q0, u = self.step_world(q0, u, control_t, dt)
+                qs[i] = q0
         
         # End state
-        end_state = np.array([q, u])
+        end_state = np.array([q0, u])
+        print(f"Final Error: {error}")
 
         return qs, end_state, errors
     

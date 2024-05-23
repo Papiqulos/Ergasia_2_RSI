@@ -8,6 +8,10 @@ qp_init = False
 prev_error = None
 sum_error = 0.
 
+init_null = False
+sum_null = 0.
+prev_null = None
+
 def fk_all(model:pin.Model, data:pin.Data, q:np.ndarray):
     """
     Compute forward kinematics for all frames
@@ -87,7 +91,7 @@ def qp_velocity_control(model:pin.Model, data:pin.Data, qd:np.ndarray, q_k:np.nd
     
     return v
 
-def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, current_q:np.ndarray, dt:float, Kp:float = 120., Ki:float = 0., Kd:float = 0.1)->tuple[np.ndarray, np.ndarray]:
+def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, current_q:np.ndarray, dt:float, Kp:float = 120., Ki:float = 0., Kd:float = 0.1, Kp_theta:float = 10., Ki_theta:float = 0., Kd_theta:float = 0.)->tuple[np.ndarray, np.ndarray]:
     """
     PID torque controller with null space controller
 
@@ -100,6 +104,9 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     - Kp : proportional gain
     - Ki : integral gain
     - Kd : derivative gain
+    - Kp_theta : proportional gain for null space controller
+    - Ki_theta : integral gain for null space controller
+    - Kd_theta : derivative gain for null space controller
     
     Returns:
     - control_t : control torque
@@ -108,6 +115,9 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     global init
     global prev_error
     global sum_error
+    global init_null
+    global sum_null
+    global prev_null
 
     frame_id = model.getFrameId("panda_ee")
 
@@ -130,6 +140,7 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
 
     if not init:
         prev_error = np.copy(error)
+
     
     sum_error += (error * dt)
     diff_error = (error - prev_error) / dt
@@ -153,18 +164,24 @@ def pid_torque_control(model:pin.Model, data:pin.Data, target_T:np.ndarray, curr
     control_t = J.T @ error
 
     # With null space controller
+    # One implementation of the null space controller
     q_target = (model.upperPositionLimit - model.lowerPositionLimit) / 2. + model.lowerPositionLimit
-    fk_all(model, data, q_target)
-    target_T_null = data.oMf[frame_id].copy()
+    error_null = current_q - q_target
 
-    target_rotation_null = target_T_null.rotation
-    target_translation_null = target_T_null.translation
+    if not init_null:
+        prev_null = np.copy(error_null)
 
-    error_rotation_null = pin.log(target_rotation_null @ current_rotation.T)
-    error_translation_null = target_translation_null - current_translation
+    sum_null += error_null * dt
+    diff_null = (error_null - prev_null) / dt
+    t_reg = Kp_theta * error_null - Ki_theta * sum_null -Kd_theta * diff_null
+    prev_null = np.copy(error_null)
 
-    error_null = np.concatenate((error_translation_null, error_rotation_null))
-    t_reg = J.T @ error_null
+    if not init_null:
+        sum_null = 0.
+        prev_null = None
+        init_null = False
+    else:
+        init_null = True
 
     control_t += (np.eye(model.nv) - J.T @ np.linalg.pinv(J.T)) @ t_reg
 
